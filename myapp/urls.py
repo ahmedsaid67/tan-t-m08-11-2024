@@ -1,9 +1,8 @@
 from django.urls import path, include
-from .views import  MenuViewSet, MenuItemListCreateView, MenuItemByMenuView, \
-    MenuItemDetailView, MenuSelectedItemViewSet,SlidersViewSet,UrunKategoriViewSet,UrunKategoriListView, CheckToken,CustomAuthToken,Logout,\
+from .views import  SlidersViewSet,UrunKategoriViewSet,UrunKategoriListView, CheckToken,CustomAuthToken,Logout,\
     UserInfoView,UrunVitrinListView,UrunlerViewSet,UrunVitrinViewSet,\
     ImageViewSet,ReferencesViewSet,HizliLinklerViewSet, \
-    ContactViewSet, HakkimizdaViewSet, BalikGorselViewSet,CountViewSet,MedyaViewSet,BedenViewSet
+    ContactViewSet, HakkimizdaViewSet,CountViewSet,MedyaViewSet,BedenViewSet
 from rest_framework.routers import DefaultRouter
 
 from django.conf import settings
@@ -11,9 +10,6 @@ from django.conf.urls.static import static
 
 #menu
 router = DefaultRouter()
-router.register(r'menus', MenuViewSet)
-router_selectedmenuitems = DefaultRouter()
-router_selectedmenuitems.register(r'menuitems/menu/selected', MenuSelectedItemViewSet)
 
 #slider
 router_sliders = DefaultRouter()
@@ -62,10 +58,6 @@ router_contact.register(r'contact', ContactViewSet)
 router_hakkimizda = DefaultRouter()
 router_hakkimizda.register(r'hakkimizda', HakkimizdaViewSet)
 
-# başlık görsel
-router_baslikgorsel = DefaultRouter()
-router_baslikgorsel.register(r'baslikgorsel', BalikGorselViewSet)
-
 
 # adet
 router_adet = DefaultRouter()
@@ -74,17 +66,7 @@ router_adet.register(r'adet', CountViewSet, basename='count')
 
 urlpatterns = [
 
-    # selectedmenuitems
-    path('', include(router_selectedmenuitems.urls)),
 
-    # menu apileri
-    path('menu/', include(router.urls)),
-
-    # menu apileri
-    path('menu/', include(router.urls)),
-    path('menuitems/', MenuItemListCreateView.as_view(), name='menuitem-list'),
-    # Tüm nesneleri sunma için ve yeni öge üretmek
-    path('menuitems/menu/<int:menu_id>/', MenuItemByMenuView.as_view(), name='menuitem-by-menu'),
     #sliders
     path('', include(router_sliders.urls)),
 
@@ -125,8 +107,6 @@ urlpatterns = [
     #hakkimizda
     path('', include(router_hakkimizda.urls)),
 
-    #baslikgrosel
-    path('', include(router_baslikgorsel.urls)),
 
 
     #adet

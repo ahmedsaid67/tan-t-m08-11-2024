@@ -31,8 +31,7 @@ from .authentication import token_expire_handler
 
 
 from rest_framework import viewsets
-from .models import Menu, MenuItem,BaslikGorsel
-from .serializers import MenuSerializer, MenuItemSerializer,UserSerializer
+from .serializers import UserSerializer
 
 
 # ---- user ----
@@ -79,149 +78,13 @@ class UserInfoView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-# --- menu ---
-
-class MenuViewSet(viewsets.ModelViewSet):
-    queryset = Menu.objects.all()
-    serializer_class = MenuSerializer
-    pagination_class = None
-    def create(self, request, *args, **kwargs):
-        selected = request.data.get('selected', False)
-
-        # Eğer yeni menü seçili ise, diğer seçili menüyü bul ve selected değerini False yap
-        if selected:
-            try:
-                existing_selected_menu = Menu.objects.get(selected=True)
-                existing_selected_menu.selected = False
-                existing_selected_menu.save()
-            except Menu.DoesNotExist:
-                pass  # Hiç seçili menü yok, devam et
-
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-
-    def perform_update(self, serializer):
-        # Yeni verilerden seçili değerini kontrol et
-        selected = serializer.validated_data.get('selected', False)
-        if selected:
-            try:
-                existing_selected_menu = Menu.objects.get(selected=True)
-                if existing_selected_menu != serializer.instance:
-                    # Güncellenecek menü, zaten seçili menü değilse
-                    existing_selected_menu.selected = False
-                    existing_selected_menu.save()
-            except Menu.DoesNotExist:
-                pass  # Hiç seçili menü yok, devam et
-
-        serializer.save()
-
-#class MenuItemViewSet(viewsets.ModelViewSet):
-#    queryset = MenuItem.objects.all()
-#    serializer_class = MenuItemSerializer
-
-#    def retrieve(self, request, pk=None):
-#        # Belirli bir menüye ait MenuItem nesnelerini getir
-#        menu_items = MenuItem.objects.filter(menu_id=pk)
-#        serializer = self.get_serializer(menu_items, many=True)
-#       return Response(serializer.data)
-
-from rest_framework import generics
-from .models import MenuItem,UrunKategori
-from .serializers import MenuItemSerializer
-
-
-# tüm menü ögelerini getirir
-class MenuItemListCreateView(generics.ListAPIView):
-    queryset = MenuItem.objects.all()
-    serializer_class = MenuItemSerializer
-    pagination_class = None
-
-
-# x menuye aıt menu ogelerini getir ve yeni öge üretir.
-class MenuItemByMenuView(generics.ListCreateAPIView):
-    serializer_class = MenuItemSerializer
-    pagination_class = None
-
-    def get_queryset(self):
-        menu_id = self.kwargs.get('menu_id')
-        return MenuItem.objects.filter(menu__id=menu_id)
-
-
-
-
-
-# menu ogelerin her birinin tekil olarak detaylarını getir.
-class MenuItemDetailView(generics.RetrieveUpdateAPIView):
-    queryset = MenuItem.objects.all()
-    serializer_class = MenuItemSerializer
-    pagination_class = None
-
-
-
-
-from rest_framework.decorators import action
-
-# seçili menünün ögeleri listele
-class MenuSelectedItemViewSet(viewsets.ModelViewSet):
-    queryset = MenuItem.objects.filter(menu__selected=True,is_removed=False)
-    serializer_class = MenuItemSerializer
-    pagination_class = None
-
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'get_active']:
-            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
-            permission_classes = []
-        else:
-            # Diğer tüm action'lar için IsAuthenticated kullan
-            permission_classes = [IsAuthenticated]
-        return [permission() for permission in permission_classes]
-
-
-    @action(detail=False, methods=['get'])
-    def get_active(self, request):
-        active = MenuItem.objects.filter(menu__selected=True,durum=True, is_removed=False)
-        page = self.paginate_queryset(active)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(active, many=True)
-        return Response(serializer.data)
-
-    @action(detail=False, methods=['patch'])
-    def update_status(self, request):
-        changes = request.data
-        print(changes)
-        for item_id, status in changes.items():
-            try:
-                item = MenuItem.objects.get(id=item_id)
-                item.durum = status
-                # Update UrunKategori if needed
-                try:
-                    urun_kategori = UrunKategori.objects.get(slug=item.slug)
-                    urun_kategori.durum = status
-                    urun_kategori.save()
-                    Urunler.objects.filter(urun_kategori=urun_kategori).update(urun_kategori=None)
-                    baslik_gorsel = BaslikGorsel.objects.get(slug=item.slug)
-                    baslik_gorsel.durum = status
-                    baslik_gorsel.save()
-
-                except UrunKategori.DoesNotExist:
-                    pass
-                item.save()
-            except MenuItem.DoesNotExist:
-                return Response({'error': f'Item with id {item_id} does not exist.'}, status=404)
-
-        return Response({'message': 'Items updated successfully.'})
 
 
 # SLİDERS
 from .models import Sliders
 from .serializers import SlidersSerializer
 from django.db.models import F
+from rest_framework.decorators import action
 
 
 class SlidersViewSet(viewsets.ModelViewSet):
@@ -392,11 +255,6 @@ class UrunKategoriViewSet(viewsets.ModelViewSet):
         # İlgili Urunler nesnelerinin durumunu ve kategori bağlantısını güncelle
         Urunler.objects.filter(urun_kategori__id__in=ids).update(urun_kategori=None)
 
-        # İlgili MenuItem nesnelerinin is_removed alanını güncelle
-        kategori_sluglari = UrunKategori.objects.filter(id__in=ids).values_list('slug', flat=True)
-        MenuItem.objects.filter(slug__in=kategori_sluglari, parent__title='Ürünlerimiz').update(is_removed=True)
-        BaslikGorsel.objects.filter(slug__in=kategori_sluglari).update(is_removed=True)
-
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=['get'])
@@ -406,104 +264,12 @@ class UrunKategoriViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(active, many=True)
         return Response(serializer.data)
 
-    ## burası zaten ön yüz için yazılmış silinmöiş ve aktif olmayan nesneleri döndürmemeyi sağlıyordu.
-    # biz ek olarak diğerlerinden ayrı burada paginations'u kaldırdık. çünkü kullanıcı arayüzü tarafında
-    # kategorinin tamamının listelenmesini istioruz.
-
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        # Güncelleme işleminden önce eski 'durum' değerini kaydet
-        old_durum = instance.durum
-        old_baslik = instance.baslik
-        self.perform_update(serializer)
-        new_baslik = serializer.validated_data.get('baslik', old_baslik)
-        new_durum = serializer.validated_data.get('durum', old_durum)
-
-        # Eğer 'durum' değişmişse ve yeni durum False ise ilgili Urunler nesnelerini güncelle
-        if old_durum != new_durum and not new_durum:
-            Urunler.objects.filter(urun_kategori=instance).update(urun_kategori=None)
-
-        if old_baslik != new_baslik:
-            self.update_related_menu_item_title(instance)
-
-        # Durum değişikliği varsa ilgili MenuItem'i güncelle
-        if old_durum != new_durum:
-            self.update_related_menu_item(instance, new_durum)
-
-        return Response(serializer.data)
-
-    def update_related_menu_item_title(self, instance):
-        try:
-            menu_item = MenuItem.objects.get(slug=instance.slug)
-            menu_item.title = instance.baslik
-            menu_item.save()
-        except MenuItem.DoesNotExist:
-            pass
-
-        try:
-            baslik_gorsel = BaslikGorsel.objects.get(slug=instance.slug)
-            baslik_gorsel.name = instance.baslik
-            baslik_gorsel.save()
-        except BaslikGorsel.DoesNotExist:
-            pass
-
-    def update_related_menu_item(self, instance, new_durum):
-        # Ürün kategorisinin başlığı ile eşleşen ve 'Ürünlerimiz' başlıklı parent menüye bağlı MenuItem nesnesini bul
-        menu_item = MenuItem.objects.get(slug=instance.slug)
-        if menu_item:
-            # Eğer bulunan menu item varsa ve durumu güncel durumdan farklıysa güncelle
-            if menu_item.durum != new_durum:
-                menu_item.durum = new_durum
-                menu_item.save()
-
-        baslik_gorsel = BaslikGorsel.objects.get(slug=instance.slug)
-        if baslik_gorsel:
-            # Eğer bulunan menu item varsa ve durumu güncel durumdan farklıysa güncelle
-            if baslik_gorsel.durum != new_durum:
-                baslik_gorsel.durum = new_durum
-                baslik_gorsel.save()
-
-
-
-    def perform_create(self, serializer):
-        instance = serializer.save()
-        self.create_related_menu_item(instance)
-
-    def create_related_menu_item(self, instance):
-
-        parent_menu_item = MenuItem.objects.get(slug='urunlerimiz')
-
-        # Eğer 'Ürünlerimiz' başlıklı bir üst menü elemanı varsa, alt menü elemanını oluştur
-        if parent_menu_item:
-            # Menü öğelerinin sıralamasını belirlemek için bir sonraki sıra numarasını al
-            next_order = MenuItem.objects.filter(parent=parent_menu_item).aggregate(Max('order'))['order__max'] or 0
-            order = next_order + 1
-
-            MenuItem.objects.create(
-                title=instance.baslik,
-                slug=instance.slug,
-                url=f'/urunlerimiz?tab={instance.slug}',
-                menu=parent_menu_item.menu,
-                parent=parent_menu_item,
-                durum=True,
-                is_removed=False,
-                order=order  # Sıralama numarası atanıyor
-            )
-
-            BaslikGorsel.objects.create(
-                name=instance.baslik,
-                slug=instance.slug,
-            )
 
 
 
 class UrunKategoriListView(ListModelMixin, GenericAPIView):
     queryset = UrunKategori.objects.filter(is_removed=False,durum=True).order_by('-id')
     serializer_class = UrunKategoriSerializer
-    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         queryset = self.get_queryset()
@@ -889,8 +655,7 @@ class ReferencesViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def get_active(self, request):
-        active = References.objects.filter(durum=True, is_removed=False).order_by('-id').select_related('urun_kategori',
-                                                                                                     'vitrin_kategori')
+        active = References.objects.filter(durum=True, is_removed=False).order_by('-id')
         page = self.paginate_queryset(active)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
@@ -977,57 +742,7 @@ class HakkimizdaViewSet(viewsets.ModelViewSet):
         return [permission() for permission in permission_classes]
 
 
-# BAŞLIK GÖRSEL
 
-from .models import BaslikGorsel
-from .serializers import BalikGorselSerializer
-
-
-
-class BalikGorselViewSet(viewsets.ModelViewSet):
-    queryset = BaslikGorsel.objects.filter(is_removed=False).order_by('-id')
-    serializer_class = BalikGorselSerializer
-
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'get_active','get_gorsel']:
-            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
-            permission_classes = []
-        else:
-            # Diğer tüm action'lar için IsAuthenticated kullan
-            permission_classes = [IsAuthenticated]
-        return [permission() for permission in permission_classes]
-
-    @action(detail=False, methods=['post'])
-    def bulk_soft_delete(self, request):
-        ids = request.data.get('ids', [])
-        # Güvenli bir şekilde int listesi oluştur
-        ids = [int(id) for id in ids if id.isdigit()]
-        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
-        BaslikGorsel.objects.filter(id__in=ids).update(is_removed=True)
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    @action(detail=False, methods=['get'])
-    def get_active(self, request):
-        active = BaslikGorsel.objects.filter(durum=True, is_removed=False).order_by('-id')
-
-        # Varsayılan paginasyonu devre dışı bırak
-        serializer = self.get_serializer(active, many=True)
-        return Response(serializer.data)
-
-    @action(detail=False, methods=['get'], url_path='get-by-name/(?P<slug>.+)')
-    def get_gorsel(self, request, slug):
-        # İsmi verilen ve aktif durumda olan görselleri filtrele
-        images = BaslikGorsel.objects.filter(slug=slug, durum=True, is_removed=False).order_by('-id')
-
-        if images.exists():
-            # İlk veriyi al
-            image = images.first()  # veya images.last()
-
-            serializer = self.get_serializer(image)
-            return Response(serializer.data)
-        else:
-            # Veri bulunamadığında boş bir liste dön
-            return Response([], status=status.HTTP_200_OK)
 
 
 class CountViewSet(viewsets.ViewSet):

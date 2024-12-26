@@ -6,36 +6,6 @@ import uuid
 
 
 
-# ----  MENÜ ----
-class Menu (models.Model):
-    title = models.CharField(max_length=255)
-    selected = models.BooleanField(default=False)
-
-class MenuItem(models.Model):
-    title = models.CharField(max_length=255)
-    slug = models.SlugField(max_length=255, unique=True, blank=True, null=True)
-    url = models.CharField(max_length=255,blank=True,null=True)
-    order = models.PositiveIntegerField()
-    parent = models.ForeignKey('self', on_delete=models.CASCADE, blank=True,null=True)
-    menu = models.ForeignKey(Menu, on_delete=models.CASCADE)
-    durum = models.BooleanField(default=True)
-    is_removed = models.BooleanField(default=False)
-
-    def save(self, *args, **kwargs):
-        if not self.slug:
-            self.slug = slugify(self.title)
-            # Benzersizliği sağlamak için slug'ı kontrol edin
-            unique_slug = self.slug
-            num = 1
-            while MenuItem.objects.filter(slug=unique_slug).exists():
-                unique_slug = f'{self.slug}-{num}'
-                num += 1
-            self.slug = unique_slug
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return self.title
-
 
 
 #### SLİDER
@@ -81,24 +51,31 @@ class UrunKategori(models.Model):
     kapak_fotografi = models.ImageField(upload_to=kapakfoto_path_urunkategori, blank=True, null=True)
     durum = models.BooleanField(default=True)
     is_removed = models.BooleanField(default=False)
-    slug = models.SlugField(max_length=255, unique=True, null=True, blank=True)  # slug alanını ekledik
+    slug = models.SlugField(max_length=255, unique=True, null=True, blank=True)
 
     def __str__(self):
         return self.baslik
 
     def save(self, *args, **kwargs):
-        # Eğer slug boşsa ve bu yeni bir nesne ise
-        if not self.id and not self.slug:
-            # Önce nesneyi veritabanına kaydet (bu, bir id atar)
-            super(UrunKategori, self).save(*args, **kwargs)
-            # Slug alanını oluştur
+        if not self.id:  # Yeni bir kayıt
+            super(UrunKategori, self).save(*args, **kwargs)  # ID oluşturuluyor
+            if not self.slug:  # Slug henüz yoksa
+                self.slug = slugify(f"{self.baslik}-{self.id}")
+                super(UrunKategori, self).save(update_fields=['slug'])  # Slug'ı güncellemek için kaydet
+        elif self.baslik_has_changed():  # Başlık değişmişse
             self.slug = slugify(f"{self.baslik}-{self.id}")
-            # save() metodunu tekrar çağırarak slug'ı kaydet
-            kwargs.pop('force_insert', None)  # force_insert argümanını kaldır
-            super(UrunKategori, self).save(*args, **kwargs)
+            super(UrunKategori, self).save(update_fields=['slug'])  # Slug'ı güncellemek için kaydet
         else:
             super(UrunKategori, self).save(*args, **kwargs)
 
+    def baslik_has_changed(self):
+        """
+        Başlık değiştiyse True döner, aksi halde False.
+        """
+        if not self.pk:  # Yeni nesne
+            return False
+        eski_baslik = UrunKategori.objects.filter(pk=self.pk).values_list('baslik', flat=True).first()
+        return eski_baslik != self.baslik
 
 ## ürün VİTRİN ###
 
@@ -257,40 +234,5 @@ class Hakkimizda(models.Model):
 
     def __str__(self):
         return "Hakkımızda"
-
-
-
-# başlık görsel
-
-
-def kapakfoto_path_baslikgorsel(instance, filename):
-    ext = filename.split('.')[-1]
-    filename = f"{uuid.uuid4()}.{ext}"
-    return f'baslikgorsel/kapakfoto/{filename}'
-
-
-class BaslikGorsel(models.Model):
-    name = models.CharField(max_length=200, blank=True, null=True)
-    slug = models.SlugField(max_length=200, unique=True, blank=True)
-    img = models.ImageField(upload_to=kapakfoto_path_baslikgorsel, blank=True, null=True)
-    durum = models.BooleanField(default=True)
-    is_removed = models.BooleanField(default=False)
-
-    def __str__(self):
-        return self.name
-
-
-    def save(self, *args, **kwargs):
-        # Eğer slug boşsa ve bu yeni bir nesne ise
-        if not self.slug:
-            # Önce nesneyi veritabanına kaydet (bu, bir id atar)
-            super(BaslikGorsel, self).save(*args, **kwargs)
-            # Slug alanını oluştur
-            self.slug = slugify(f"{self.name}-{self.id}")
-            # save() metodunu tekrar çağırarak slug'ı kaydet
-            kwargs.pop('force_insert', None)  # force_insert argümanını kaldır
-            super(BaslikGorsel, self).save(*args, **kwargs)
-        else:
-            super(BaslikGorsel, self).save(*args, **kwargs)
 
 

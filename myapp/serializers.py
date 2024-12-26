@@ -13,20 +13,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 
-# ---- MENU ----
 
-from .models import Menu, MenuItem
-
-class MenuSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Menu
-        fields = '__all__'
-
-class MenuItemSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = MenuItem
-        fields = '__all__'
 
 
 from .models import Sliders
@@ -192,13 +179,3 @@ class HakkimizdaSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-
-# BAŞLIK GÖRSEL
-
-
-from .models import BaslikGorsel
-class BalikGorselSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = BaslikGorsel
-        fields = '__all__'
