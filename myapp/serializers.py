@@ -72,7 +72,7 @@ class UrunlerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Urunler
         fields = ['id', 'baslik','slug', 'fiyat', 'kapak_fotografi', 'urun_kategori', 'vitrin_kategori', 'urun_kategori_id',
-                  'vitrin_kategori_id', 'durum', 'is_removed']
+                  'vitrin_kategori_id', 'durum','aciklama', 'is_removed']
 
     def create(self, validated_data):
         urun_kategori_id = validated_data.pop('urun_kategori_id')
