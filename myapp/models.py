@@ -120,6 +120,7 @@ class Urunler(models.Model):
     baslik = models.CharField(max_length=255,blank=True,null=True)
     slug = models.SlugField(max_length=200, unique=True,null=True, blank=True)
     fiyat = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    aciklama = models.TextField()
     kapak_fotografi = models.ImageField(upload_to=kapakfoto_path_urunler, blank=True, null=True)
     urun_kategori=models.ForeignKey(UrunKategori,on_delete=models.CASCADE,null=True, blank=True)
     vitrin_kategori = models.ForeignKey(UrunVitrin, on_delete=models.SET_NULL, null=True, blank=True)
