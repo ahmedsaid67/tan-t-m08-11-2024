@@ -93,6 +93,7 @@ class UrunlerSerializer(serializers.ModelSerializer):
         vitrin_kategori = UrunVitrin.objects.get(id=vitrin_kategori_id) if vitrin_kategori_id else None
 
         instance.baslik = validated_data.get('baslik', instance.baslik)
+        instance.aciklama = validated_data.get('aciklama', instance.aciklama)
         instance.fiyat = validated_data.get('fiyat', instance.fiyat)
         instance.urun_kategori = urun_kategori
         instance.vitrin_kategori = vitrin_kategori
