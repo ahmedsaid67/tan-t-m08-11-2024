@@ -2,7 +2,7 @@ from django.urls import path, include
 from .views import  SlidersViewSet,UrunKategoriViewSet,UrunKategoriListView, CheckToken,CustomAuthToken,Logout,\
     UserInfoView,UrunVitrinListView,UrunlerViewSet,UrunVitrinViewSet,\
     ImageViewSet,ReferencesViewSet,HizliLinklerViewSet, \
-    ContactViewSet, HakkimizdaViewSet,CountViewSet,MedyaViewSet,BedenViewSet
+    ContactViewSet, HakkimizdaViewSet,CountViewSet,MedyaViewSet,BedenViewSet,OzellikViewSet
 from rest_framework.routers import DefaultRouter
 
 from django.conf import settings
@@ -26,6 +26,11 @@ router_vitrin.register(r'urunvitrin', UrunVitrinViewSet)
 #bedenler
 router_bedenler = DefaultRouter()
 router_bedenler.register(r'bedenler', BedenViewSet, basename='beden')
+
+
+#özellikler
+router_ozellikler = DefaultRouter()
+router_ozellikler.register(r'ozellikler', OzellikViewSet, basename='ozellik')
 
 
 # ürünler
@@ -82,6 +87,9 @@ urlpatterns = [
 
     ##bedenler
     path('', include(router_bedenler.urls)),
+
+    ##özellikler
+    path('', include(router_ozellikler.urls)),
 
     # ürünler
     path('', include(router_urunler.urls)),

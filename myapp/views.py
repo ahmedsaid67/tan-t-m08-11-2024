@@ -226,7 +226,7 @@ from rest_framework import permissions
 from django_filters import rest_framework as filters
 
 from .models import Urunler
-from .serializers import UrunlerSerializer
+from .serializers import UrunlerSerializer,UrunlerGetSerializer
 
 from .models import UrunKategori
 from .serializers import UrunKategoriSerializer
@@ -487,9 +487,94 @@ class BedenViewSet(viewsets.ModelViewSet):
 
 
 
+### özellikler ###
+
+
+from .models import Ozellik
+from .serializers import OzellikSerializer
+from django.db import transaction
+
+class OzellikViewSet(viewsets.ModelViewSet):
+    queryset = Ozellik.objects.all().order_by('id')
+    serializer_class = OzellikSerializer
+
+    @action(detail=False, methods=['get'], url_path='urun/(?P<urun_id>\d+)')
+    def ozellikler_by_urun(self, request, urun_id=None):
+        queryset = Ozellik.objects.filter(urun__id=urun_id).order_by('id')
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'], url_path='urun/(?P<urun_id>\d+)/update-durum')
+    def ozellikler_durum_update(self, request, urun_id=None):
+        ozellikler_list = request.data.get('list', [])
+
+
+        updated_ozellikler = []
+
+        for ozellik_data in ozellikler_list:
+            ozellik_id = ozellik_data.get('id')
+            ozellik_durum = ozellik_data.get('durum')
+
+            try:
+                ozellik = Ozellik.objects.get(id=ozellik_id, urun_id=urun_id)
+                if ozellik.durum != ozellik_durum:
+                    ozellik.durum = ozellik_durum
+                    ozellik.save()
+                    updated_ozellikler.append(ozellik_id)
+            except Ozellik.DoesNotExist:
+                return Response({'error': f'Özellik with id {ozellik_id} not found for Urun {urun_id}.'},
+                                status=status.HTTP_404_NOT_FOUND)
+
+        return Response({'success': 'Özellik durumları güncellendi.', 'updated_özellikler': updated_ozellikler},
+                        status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], url_path='urun/(?P<urun_id>\d+)/create')
+    def ozellik_create_toplu(self, request, urun_id=None):
+        try:
+            # 1. Özellikler listesini al
+            ozellikler_list = request.data.get('list', [])
+
+            # 2. Ürün nesnesinin mevcut olup olmadığını kontrol et
+            if not Urunler.objects.filter(id=urun_id).exists():
+                return Response({'error': 'Urunler object does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+            # 3. Ürün nesnesini al
+            urun = Urunler.objects.get(id=urun_id)
+
+            # 4. Boş bir liste tanımla
+            ozellik_objects = []
+
+            # 5. ozellikler_list içinde dön
+            for ozellik_data in ozellikler_list:
+                # 6. Her bir ozellik_data için bir Ozellik nesnesi oluştur
+                ozellik = Ozellik(
+                    urun=urun,
+                    name=ozellik_data.get('name'),
+                    durum=ozellik_data.get('durum', False)
+                )
+                # 7. Bu nesneyi listeye ekle
+                ozellik_objects.append(ozellik)
+
+            # 8. Toplu işlem başlat
+            with transaction.atomic():
+                # 9. Toplu oluşturma işlemi yap
+                Ozellik.objects.bulk_create(ozellik_objects)
+
+            # 10. Başarılı yanıt döndür
+            return Response({'message': 'Özellik objects created successfully'}, status=status.HTTP_201_CREATED)
+
+        except Urunler.DoesNotExist:
+            # Ürün bulunamadığında hata yanıtı
+            return Response({'error': 'Urunler object does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            # Diğer hatalar için genel yanıt
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 #### urunler ###
-
+from django.shortcuts import get_object_or_404
 
 class UrunlerFilter(filters.FilterSet):
     kategori = filters.CharFilter(field_name='urun_kategori__slug', method='filter_kategori')
@@ -507,13 +592,26 @@ class UrunlerFilter(filters.FilterSet):
         model = Urunler
         fields = ['kategori', 'vitrin_kategori']
 
-
+from .serializers import UrunlerDetailSerializer,UrunlerUpdateSerializer,UrunlerCreateSerializer,UrunlerAramaSerializer
 class UrunlerViewSet(viewsets.ModelViewSet):
     queryset = Urunler.objects.filter(is_removed=False).order_by('-id').select_related('urun_kategori','vitrin_kategori')
     serializer_class = UrunlerSerializer
 
     filter_backends = (filters.DjangoFilterBackend,)
     filterset_class = UrunlerFilter
+
+    def get_serializer_class(self):
+        # Use UrunlerUpdateSerializer for update-related actions
+        if self.action in ['update', 'partial_update']:
+            return UrunlerUpdateSerializer
+        # Use UrunlerCreateSerializer for create action
+        if self.action == 'create':
+            return UrunlerCreateSerializer
+        # Use UrunlerDetailSerializer for retrieve action
+        if self.action == 'retrieve':
+            return UrunlerDetailSerializer
+        # Default to UrunlerSerializer for other actions
+        return UrunlerSerializer
 
     def get_permissions(self):
         # Eğer metot GET ise ya da 'kategori' sorgu parametresi varsa, herkese izin ver (AllowAny).
@@ -545,6 +643,30 @@ class UrunlerViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(active, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='active-full')
+    def active_full(self, request):
+        # Yalnızca 'id', 'slug' ve 'baslik' alanlarını seç ve JSON formatında döndür
+        detaylar = Urunler.objects.filter(is_removed=False).order_by('-id')
+
+        serializers=UrunlerAramaSerializer(detaylar,many=True, context={'request': request})
+
+
+        return Response(serializers.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='urun-detail')
+    def urun_detail(self, request):
+        urun_slug = request.query_params.get('slug')  # Use query_params for GET requests
+        if not urun_slug:
+            return Response({"error": "ID parameter is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            urun = Urunler.objects.get(slug=urun_slug)
+        except Urunler.DoesNotExist:
+            return Response({"error": "Product not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = UrunlerGetSerializer(urun, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 
