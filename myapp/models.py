@@ -56,17 +56,27 @@ class UrunKategori(models.Model):
     def __str__(self):
         return self.baslik
 
+    def __init__(self, *args, **kwargs):
+        super(UrunKategori, self).__init__(*args, **kwargs)
+        self.__original_baslik = self.baslik  # Başlığın orijinal değerini sakla
+
     def save(self, *args, **kwargs):
-        if not self.id:  # Yeni bir kayıt
-            super(UrunKategori, self).save(*args, **kwargs)  # ID oluşturuluyor
-            if not self.slug:  # Slug henüz yoksa
+        # Yeni bir kayıt ise
+        if not self.id:
+            super(UrunKategori, self).save(*args, **kwargs)  # Önce kaydet (ID oluşturulur)
+            if not self.slug:  # Slug yoksa oluştur
                 self.slug = slugify(f"{self.baslik}-{self.id}")
-                super(UrunKategori, self).save(update_fields=['slug'])  # Slug'ı güncellemek için kaydet
-        elif self.baslik_has_changed():  # Başlık değişmişse
-            self.slug = slugify(f"{self.baslik}-{self.id}")
-            super(UrunKategori, self).save(update_fields=['slug'])  # Slug'ı güncellemek için kaydet
+                super(UrunKategori, self).save(update_fields=['slug'])  # Slug'ı güncelle
         else:
-            super(UrunKategori, self).save(*args, **kwargs)
+            # Başlık değişmişse
+            if self.baslik != self.__original_baslik:
+                self.slug = slugify(f"{self.baslik}-{self.id}")
+                super(UrunKategori, self).save(*args, **kwargs)  # Tüm modeli kaydet
+            else:
+                super(UrunKategori, self).save(*args, **kwargs)  # Normal kaydetme işlemi
+
+        # Orijinal başlık değerini güncelle
+        self.__original_baslik = self.baslik
 
     def baslik_has_changed(self):
         """

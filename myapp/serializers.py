@@ -85,12 +85,8 @@ class UrunlerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Urunler
-        fields = ['id', 'baslik','slug', 'fiyat', 'kapak_fotografi', 'urun_kategori', 'vitrin_kategori', 'urun_kategori_id',
-<<<<<<< HEAD
-                  'vitrin_kategori_id', 'durum','aciklama','is_removed']
-=======
-                  'vitrin_kategori_id', 'durum','aciklama', 'is_removed']
->>>>>>> origin/main
+        fields = ['id', 'baslik','slug', 'fiyat', 'kapak_fotografi', 'urun_kategori', 'vitrin_kategori', 'urun_kategori_id', 'vitrin_kategori_id', 'durum','aciklama','is_removed']
+
 
     def create(self, validated_data):
         urun_kategori_id = validated_data.pop('urun_kategori_id')
@@ -272,8 +268,8 @@ class UrunlerUpdateSerializer(serializers.ModelSerializer):
             instance.fiyat = validated_data.get('fiyat', instance.fiyat)
             instance.kapak_fotografi = validated_data.get('kapak_fotografi', instance.kapak_fotografi)
             instance.aciklama = validated_data.get('aciklama', instance.aciklama)
-            instance.urun_kategori = validated_data.get('urun_kategori', instance.urun_kategori)
-            instance.vitrin_kategori = validated_data.get('vitrin_kategori', instance.vitrin_kategori)
+            instance.urun_kategori = validated_data.get('urun_kategori')
+            instance.vitrin_kategori = validated_data.get('vitrin_kategori')
             instance.durum = validated_data.get('durum', instance.durum)
 
         instance.save()

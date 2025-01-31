@@ -226,7 +226,7 @@ from rest_framework import permissions
 from django_filters import rest_framework as filters
 
 from .models import Urunler
-from .serializers import UrunlerSerializer,UrunlerGetSerializer
+from .serializers import UrunlerSerializer
 
 from .models import UrunKategori
 from .serializers import UrunKategoriSerializer
@@ -592,7 +592,7 @@ class UrunlerFilter(filters.FilterSet):
         model = Urunler
         fields = ['kategori', 'vitrin_kategori']
 
-from .serializers import UrunlerDetailSerializer,UrunlerUpdateSerializer,UrunlerCreateSerializer,UrunlerAramaSerializer
+from .serializers import UrunlerDetailSerializer,UrunlerUpdateSerializer,UrunlerCreateSerializer,UrunlerAramaSerializer,UrunlerGetSerializer
 class UrunlerViewSet(viewsets.ModelViewSet):
     queryset = Urunler.objects.filter(is_removed=False).order_by('-id').select_related('urun_kategori','vitrin_kategori')
     serializer_class = UrunlerSerializer
