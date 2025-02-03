@@ -259,3 +259,12 @@ class Hakkimizda(models.Model):
         return "Hakkımızda"
 
 
+
+
+class Message(models.Model):
+    name = models.CharField(max_length=250)
+    mail = models.EmailField()
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_removed = models.BooleanField(default=False)
+

@@ -413,3 +413,14 @@ class HakkimizdaSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+
+# MESSAGE
+
+from .models import Message
+class MessageSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Message
+        fields = '__all__'
+
+

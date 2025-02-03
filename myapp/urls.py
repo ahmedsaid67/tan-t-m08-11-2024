@@ -2,7 +2,7 @@ from django.urls import path, include
 from .views import  SlidersViewSet,UrunKategoriViewSet,UrunKategoriListView, CheckToken,CustomAuthToken,Logout,\
     UserInfoView,UrunVitrinListView,UrunlerViewSet,UrunVitrinViewSet,\
     ImageViewSet,ReferencesViewSet,HizliLinklerViewSet, \
-    ContactViewSet, HakkimizdaViewSet,CountViewSet,MedyaViewSet,BedenViewSet,OzellikViewSet
+    ContactViewSet, HakkimizdaViewSet,CountViewSet,MedyaViewSet,BedenViewSet,OzellikViewSet,MessageViewSet
 from rest_framework.routers import DefaultRouter
 
 from django.conf import settings
@@ -68,6 +68,10 @@ router_hakkimizda.register(r'hakkimizda', HakkimizdaViewSet)
 router_adet = DefaultRouter()
 router_adet.register(r'adet', CountViewSet, basename='count')
 
+# message
+router_message = DefaultRouter()
+router_message.register(r'message', MessageViewSet, basename='message')
+
 
 urlpatterns = [
 
@@ -115,10 +119,11 @@ urlpatterns = [
     #hakkimizda
     path('', include(router_hakkimizda.urls)),
 
-
-
     #adet
     path('', include(router_adet.urls)),
+
+    #messge
+    path('', include(router_message.urls)),
 
     # auth apileri
     path('token/', CustomAuthToken.as_view(), name='api-token'),

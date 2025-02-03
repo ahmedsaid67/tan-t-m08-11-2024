@@ -882,3 +882,39 @@ class CountViewSet(viewsets.ViewSet):
         }
 
         return Response(data)
+
+
+
+
+
+
+# MESSAGE
+
+from .models import Message
+from .serializers import MessageSerializer
+
+
+class MessageViewSet(viewsets.ModelViewSet):
+    queryset = Message.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = MessageSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        HizliLinkler.objects.filter(id__in=ids).update(is_removed=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+
